@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Project Server</title>
+  <style>
+    body {
+      font-family: Calibri, sans-serif;
+      margin: 48px;              /* CHANGED from 40px */
+      color: #1a1a1a;            /* CHANGED from #1b365d, matches the black used across my portfolio */
+    }
+
+    h1 {
+      font-size: 32px;
+      margin-bottom: 4px;
+    }
+
+    .intro {                     /* ADDED, a short line under the heading */
+      color: #8a94a6;
+      margin-top: 0;
+      margin-bottom: 28px;
+    }
+
+    article {
+      max-width: 420px;
+      margin: 12px 0;
+      padding: 16px;
+      border: 1px solid #d0d5dd;
+      border-radius: 0;          /* CHANGED from 8px, square corners to match my other pages */
+    }
+
+    .category {                  /* ADDED, the category line inside each card */
+      font-size: 12px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #8a94a6;            /* CHANGED from #6b6b6b so it stays readable on the dark theme */
+      margin: 4px 0 8px 0;
+    }
+
+    .description {               /* ADDED, Week 6 Question 7 asked where this would go */
+      font-size: 15px;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    /* ADDED for Week 7, the note form and the list of saved notes */
+    h2.notes-heading {
+      font-size: 20px;
+      margin: 36px 0 8px 0;
+    }
+
+    #note-form {
+      display: flex;
+      gap: 8px;
+      max-width: 420px;
+      margin-bottom: 16px;
+    }
+
+    #note-input {
+      flex: 1;
+      padding: 8px;
+      font-family: inherit;
+      font-size: 15px;
+      border: 1px solid #d0d5dd;
+    }
+
+    #note-form button {
+      padding: 8px 14px;
+      font-family: inherit;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    #notes p {
+      max-width: 420px;
+      margin: 8px 0;
+      padding: 10px 12px;
+      border-left: 3px solid #d0d5dd;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <h1>My Project Server</h1>
+  <p class="intro">This list is not in the page. The browser asks the server for it.</p>
+
+  <section id="list"></section>
+
+  <h2 class="notes-heading">Visitor notes</h2>
+
+  <form id="note-form">
+    <input
+      type="text"
+      id="note-input"
+      placeholder="Leave a short note"
+      maxlength="200"
+      required
+    >
+    <button type="submit">Save note</button>
+  </form>
+  <section id="notes"></section>
+
+  <script>
+    fetch("/projects")
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error("Server returned " + response.status);
+        }
+        return response.json();
+      })
+      .then(function (projects) {
+        const list = document.querySelector("#list");
+
+        projects.forEach(function (project) {
+          const card = document.createElement("article");
+
+          const title = document.createElement("h2");
+          title.textContent = project.title;
+
+          const category = document.createElement("p");
+          category.className = "category";
+          category.textContent = project.category;
+
+          const description = document.createElement("p");
+          description.className = "description";
+          description.textContent = project.description;
+
+          card.appendChild(title);
+          card.appendChild(category);
+          card.appendChild(description);
+          list.appendChild(card);
+        });
+      })
+      .catch(function (error) {
+        document.querySelector("#list").textContent =
+          "The projects could not be loaded.";
+        console.error(error);
+      });
+
+    // Read the theme cookie if it exists
+    const theme = document.cookie
+      .split("; ")
+      .find(row => row.startsWith("theme="))
+      ?.split("=")[1];
+
+    if (theme === "dark") {
+      document.body.style.backgroundColor = "#1b365d";
+      document.body.style.color = "white";
+    }
+
+    // Button that sets the cookie
+    const button = document.createElement("button");
+    button.textContent = "Toggle dark theme";
+    button.addEventListener("click", function () {
+      const isDark =
+        document.body.style.backgroundColor === "rgb(27, 54, 93)";
+
+      if (isDark) {
+        document.cookie = "theme=light; path=/; max-age=86400";
+        document.body.style.backgroundColor = "";
+        document.body.style.color = "";
+      } else {
+        document.cookie = "theme=dark; path=/; max-age=86400";
+        document.body.style.backgroundColor = "#1b365d";
+        document.body.style.color = "white";
+      }
+    });
+    document.body.prepend(button);
+
+    function loadNotes() {
+      fetch("/notes")
+        .then(response => response.json())
+        .then(data => {
+          const box = document.querySelector("#notes");
+          box.innerHTML = "";
+
+          data.forEach(note => {
+            const p = document.createElement("p");
+            p.textContent = note.text;
+            box.appendChild(p);
+          });
+        });
+    }
+
+    document.querySelector("#note-form")
+      .addEventListener("submit", function (event) {
+        event.preventDefault();
+        const input = document.querySelector("#note-input");
+
+        fetch("/notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: input.value })
+        })
+        .then(response => {
+          if (!response.ok) {
+            return response.json().then(data => {
+              throw new Error(data.message);
+            });
+          }
+
+          input.value = "";
+          loadNotes();
+        })
+        .catch(error => {
+          alert(error.message);
+        });
+      });
+
+    loadNotes();
+  </script>
+</body>
+</html>
